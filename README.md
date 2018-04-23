@@ -13,9 +13,9 @@ Copy these files into a properly organized catkin_workspace. Use catkin_make to 
 ## Usage
 
 First, run
-  sudo modprobe v4l2loopback
+    sudo modprobe v4l2loopback
 
 Run the ROS node with
- 	rosrun thermpkg thermpkg_node
+ 	  rosrun thermpkg thermpkg_node
 
 Ros will have a "/temperature" node that contains the raw temperature data from the ThermApp camera. 
