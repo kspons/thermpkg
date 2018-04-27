@@ -7,7 +7,11 @@ import numpy as np
 from rospy.numpy_msg import numpy_msg
 from std_msgs.msg import Int16MultiArray
 
+import os
+
 PIXEL_DATA_SIZE = int(384*288)
+# stupid globalvars
+counter = 0
 
 # Calibration variables
 calib_counter = 0
@@ -157,8 +161,40 @@ def minimal(temperature_msg):
         print('exit key pressed')
         rospy.signal_shutdown('exit key pressed')
 
-def newheatmap(temperature_msg):
+def minimal_copy(temperature_msg):
 
+    # put the temperature message into a a 2x2 numpy array
+    tempData = np.zeros((288,384), dtype=int)
+    for i in range(0, 288):
+        for j in range(0, 384):
+            tempData[i, j] = temperature_msg.data[PIXEL_DATA_SIZE - 1 - (i*384+j)]
+
+    # normalize the pixels between 0 and 255 to make it viewable
+    temp_min = min(temperature_msg.data)
+    temp_max = max(temperature_msg.data)
+    temp_range = float(temp_max - temp_min)
+    bwimg = (tempData - temp_min) / temp_range * 255
+    bwimg = bwimg.astype('uint8')
+    
+    # display the image
+    cv2.imshow('image', bwimg)
+    cv2.setMouseCallback('image', click_print)
+
+    global stupidx
+    global stupidy
+    global stupidprint
+    if (stupidprint):
+        stupidprint = False
+        print stupidx, stupidy
+        print tempData[stupidy, stupidx]
+
+    waitkey = cv2.waitKey(1)
+    if waitkey == 27 or waitkey == 113: # 'esc' and 'q' keys
+        print('exit key pressed')
+        rospy.signal_shutdown('exit key pressed')
+
+
+def newheatmap(temperature_msg):
     # put the temperature message into a a 2x2 numpy array
     tempData = np.zeros((288,384), dtype=int)
     for i in range(0, 288):
@@ -177,7 +213,7 @@ def newheatmap(temperature_msg):
     # select ranges and color them
     for i in range(0,288):
         for j in range(0, 384):
-            if tempData[i,j] >= -700 and tempData[i,j] < -350:
+            if tempData[i,j] >= -700 and tempData[i,j] < -430: # around -330 for Memorial .bags
                 myimg[i,j] = [255,0,0]
     # display the image
     cv2.imshow('image', myimg)
@@ -186,10 +222,68 @@ def newheatmap(temperature_msg):
         print('exit key pressed')
         rospy.signal_shutdown('exit key pressed')
 
+def gracefulbug(temperature_msg):
+    # put the temperature message into a a 2x2 numpy array
+    initguess = temperature_msg.data[0] + 100
+    temp_min = initguess
+    temp_max = max(temperature_msg.data)
+    temp_range = float(temp_max - temp_min)
+    myimg = np.zeros((288,384,3), dtype='uint8')
+    for i in range(0, 288):
+        for j in range(0, 384):
+            x = temperature_msg.data[PIXEL_DATA_SIZE - 1 - (i*384+j)]
+            if temperature_msg.data < initguess:
+                myimg[i,j,] = [255,0,0]
+            else:
+                pix = (x - temp_min) / temp_range * 255
+                myimg[i,j] = np.array((pix,pix,pix), dtype = 'uint8')
+
+    # display the image
+    cv2.imshow('image', myimg)
+    waitkey = cv2.waitKey(1)
+    if waitkey == 27 or waitkey == 113: # 'esc' and 'q' keys
+        print('exit key pressed')
+        rospy.signal_shutdown('exit key pressed')
+
+def newheatmap2(temperature_msg):
+    # put the temperature message into a a 2x2 numpy array
+    initguess = temperature_msg.data[PIXEL_DATA_SIZE - 1] + 100
+    temp_min = initguess
+    temp_max = max(temperature_msg.data)
+    temp_range = float(temp_max - temp_min)
+    myimg = np.zeros((288,384,3), dtype='uint8')
+    for i in range(0, 288):
+        for j in range(0, 384):
+            x = temperature_msg.data[PIXEL_DATA_SIZE - 1 - (i*384+j)]
+            if x < initguess:
+                myimg[i,j,] = [255,0,0]
+            else:
+                pix = (x - temp_min) / temp_range * 255
+                myimg[i,j] = np.array((pix,pix,pix), dtype = 'uint8')
+
+    # display the image
+    cv2.imshow('image', myimg)
+    waitkey = cv2.waitKey(1)
+    imagesaver(myimg)
+    if waitkey == 27 or waitkey == 113: # 'esc' and 'q' keys
+        print('exit key pressed')
+        rospy.signal_shutdown('exit key pressed')
+
+def imagesaver(img):
+    global counter
+    # change cwd
+    foldername = "myfolder"
+    folderpath = "/home/kspons/Pictures/" + foldername
+    imgname = 'img' + str(counter).zfill(4) + ".png"
+    if not os.path.exists(folderpath):
+        os.makedirs(folderpath)
+        print "creating folder " + folderpath
+    cv2.imwrite(folderpath + "/" + imgname, img)
+    counter = counter + 1
+
 def temp_sub():
     rospy.init_node('listener')
-
-    rospy.Subscriber("temperature", Int16MultiArray, newheatmap)
+    rospy.Subscriber("temperature", Int16MultiArray, newheatmap2)
     rospy.spin()
 
 def myshutdown():
