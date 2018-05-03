@@ -305,7 +305,8 @@ def horiz_hist(tempData): # returns an image of the 'horizontal' histogram
     row_avg = np.average(tempData, axis=1)
 
     # initialize opencv image as np array
-    hist_img = np.zeros((256+200,256*2), dtype='uint8')
+    hist_img = np.zeros((288,288+50,3), dtype='uint8')
+    hist_img.fill(255)
 
     # get values that will be used to scale data to fit it onto the image
     mymax = row_avg.max()
@@ -313,41 +314,83 @@ def horiz_hist(tempData): # returns an image of the 'horizontal' histogram
     myrange = abs(mymax - mymin)
 
     # loop that plots a circle for each average row value
-    for i in range(np.size(tempData, axis=0)):
+    for i in range(len(row_avg)):
         # mypt = (row of image, average value of said row)
-        mypt = (100+i, int((row_avg[i]-mymin)/myrange*256)+100)
-        cv2.circle(hist_img, mypt, 1, (255,0,0), 1)
+        mypt = (50+i, int((row_avg[i]-mymin)/myrange*288))
+        cv2.circle(hist_img, mypt, 0, (0,0,0), 2)
 
     hist_img = cv2.flip(hist_img, 0)
-    cv2.putText(hist_img, str(int(mymin)), (50,356), cv2.FONT_HERSHEY_PLAIN, 1, (255,0,0))
-    cv2.putText(hist_img, str(int(mymax)), (50,100), cv2.FONT_HERSHEY_PLAIN, 1, (255,0,0))
+    cv2.putText(hist_img, str(int(mymin)), (0,288), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
+    cv2.putText(hist_img, str(int(mymax)), (0,10), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
+
+    # Estimate the peak
+    peak = peaker(tempData)
+    cv2.line(hist_img, (50+peak, 0), (50+peak, 384), (0,255,0), 1)
+    min_img = simple_img(tempData)
+    min_img = cv2.cvtColor(min_img, cv2.COLOR_GRAY2BGR)
+    cv2.line(min_img, (0,peak), (384,peak), (0,255,0), 1)
+    hist_img = img_merge(min_img, hist_img)
+
+
 
     return hist_img
 
-def img_merge(img0, img1):
-    height = np.zeros((2), dtype=int)
-    width = np.zeros((2), dtype=int)
-    [height[0], width[0]] = np.shape(img0)
-    [height[1], width[1]] = np.shape(img1)
+def vert_hist(tempData): # returns an image of the 'vertical' histogram
+    # this function takes the average of each column and plots it
 
-    final_img = np.zeros((height.max(), width.sum()), dtype='uint8')
-    startpos = (height.max()-height.min())/2
-    final_img[0:height[1], width[0]:] = img1
-    final_img[startpos:startpos+height[0], 20:width[0]+20] = img0
+    # get the average
+    col_avg = np.average(tempData, axis=0)
 
+    # initialize opencv image as np array
+    hist_img = np.zeros((288,384+50,3), dtype='uint8')
+    hist_img.fill(255)
 
+    # get values that will be used to scale data to fit it onto the image
+    mymax = col_avg.max()
+    mymin = col_avg.min()
+    myrange = abs(mymax - mymin)
 
-    final_img = cv2.cvtColor(final_img, cv2.COLOR_GRAY2BGR)
+    # loop that plots a circle for each average row value
+    for i in range(len(col_avg)):
+        # mypt = (row of image, average value of said row)
+        mypt = (50+i, int((col_avg[i]-mymin)/myrange*288))
+        cv2.circle(hist_img, mypt, 0, (0,0,0), 2)
 
-    cv2.arrowedLine(final_img, (20, startpos), (20, startpos+height.min()), (255,0,0), 5)
-    cv2.arrowedLine(final_img, (width[0]+100, height.max()-50), (width[0]+100+288, height.max()-50), (255,0,0), 5)
+    hist_img = cv2.flip(hist_img, 0)
+    cv2.putText(hist_img, str(int(mymin)), (0,288), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
+    cv2.putText(hist_img, str(int(mymax)), (0,10), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
 
+    return hist_img
+
+def img_merge(img0, img1): # combines two images into one, side by side
+    # input images must have height of 288 pixels
+    # img0 is the LHS img, img1 is the RHS img
+    height = 288+40 # buffer of 20 pixels on top and bottom
+    lwidth = np.shape(img0)[1]
+    width = lwidth + np.shape(img1)[1] + 60 # buffer of 20 on left, between, and right
+
+    # make sure input images are 3 channel, not one
+    if np.size(np.shape(img0)) < 3:
+        img0 = cv2.cvtColor(img0, cv2.COLOR_GRAY2BGR)
+    if np.size(np.shape(img1)) < 3:
+        img1 = cv2.cvtColor(img1, cv2.COLOR_GRAY2BGR)
+
+    # initialize merged image
+    final_img = np.zeros((height, width, 3), dtype='uint8')
+    final_img.fill(128)
+
+    # numpy arrays - use numpy coordinate system
+    final_img[20:288+20, 20:lwidth+20] = img0
+    final_img[20:288+20, lwidth+40:np.shape(final_img)[1]-20] = img1
+
+    # # Reference lines
+    # gotta change these depending on what images are being merged
+    # cv2 function for drawing - use OpenCV coordinate system
+    cv2.arrowedLine(final_img, (20, 20), (20, 288+20), (255,0,0), 5) # for min_img on LHS
+    cv2.arrowedLine(final_img, (lwidth+40, 288+20), (np.shape(final_img)[1]-20, 288+20), (255,0,0), 4) # for hhist_img on RHS
     # green reference lines
-    # LHS
-    cv2.line(final_img, (20,height.max()/2), (20+384, height.max()/2), (0,255,0), 2)
-    # RHS
-    cv2.line(final_img, (width[0]+100+144,100), (width[0]+100+144, 100+256), (0,255,0), 2)
-
+    # cv2.line(final_img, (20,20+288/2), (20+384, 20+288/2), (0,255,0), 1) # for min_img on LHS
+    # cv2.line(final_img, (lwidth+40+np.shape(img1)[1]/2,20), (lwidth+40+np.shape(img1)[1]/2, 288+20), (0,255,0), 1) # for hhist_img on RHS
 
     return final_img
 
@@ -373,7 +416,7 @@ def sky_picture(tempData): # create and display image of detected sky
 def imagesaver(img):
     global counter
     # change cwd
-    foldername = "ceiling_wall"
+    foldername = "first_horizon"
     folderpath = "/home/kspons/Pictures/" + foldername
     imgname = 'img' + str(counter).zfill(4) + ".png"
     if not os.path.exists(folderpath):
@@ -381,6 +424,35 @@ def imagesaver(img):
         print "creating folder " + folderpath
     cv2.imwrite(folderpath + "/" + imgname, img)
     counter = counter + 1
+
+def peaker(tempData): # this function approximates the horizion based off hhist peak
+
+    # get the average of each row
+    avg = np.average(tempData, axis=1)
+    
+    # alternate method for getting average that exculdes the sun
+    for i in range(0, 288):
+        sunpix = 0
+        counter = 0
+        rowavg = np.sum(tempData[i,:])/384
+        for j in range(0, 383):
+            if tempData[i,j] > rowavg + 50: # trying to filter out the sun
+                sunpix = tempData[i,j] + sunpix
+                counter = counter + 1
+        # print i
+        # print (np.sum(tempData[i,:], axis=0)-sunpix)/(384-counter)
+        avg[i] = (np.sum(tempData[i,:], axis=0)-sunpix)/(384-counter) # average without the sun pixels
+
+    out = 0
+    for i in range(5, len(avg)):
+        b4 = np.sum(avg[i-5:i])
+        af = np.sum(avg[i+1:i+6])
+        if b4 > af:
+            out = i
+            break
+    
+    return out
+
 
 def fuckeverything(msg):
     temp = np.zeros((288,384), dtype=int)
@@ -412,19 +484,23 @@ def temperature_callback(temp_msg):
     tempData = Temperature_as_np_array(temp_msg)
 
     # # Select which images you want to create
-    # min_img = simple_img(tempData)
+    min_img = simple_img(tempData)
     # hist_img = histogram(tempData)
-    hhist_img = horiz_hist(tempData)
+    # hhist_img = horiz_hist(tempData)
+    # vhist_img = vert_hist(tempData)
     # merge_img = img_merge(min_img, hhist_img)
     # sky_img = sky_picture(tempData)
 
     # # Save an image if you want to
-    # imagesaver(img)
+    # imagesaver(hhist_img)
+
+    # peaker(tempData)
 
     # # Display selected images
-    # cv2.imshow('min_img', min_img)
+    cv2.imshow('min_img', min_img)
     # cv2.imshow('histogram', hist_img)
-    cv2.imshow('hhist_img', hhist_img)
+    # cv2.imshow('hhist_img', hhist_img)
+    # cv2.imshow('vhist_img', vhist_img)
     # cv2.imshow('merge_image', merge_img)
     # cv2.imshow('sky_img', sky_img)
     
