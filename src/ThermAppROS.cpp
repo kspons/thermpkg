@@ -81,11 +81,14 @@ int main(int argc, char** argv)
     ros::init(argc, argv, "thermal_node");
     ros::NodeHandle n;
     ros::Publisher pub_temperature = n.advertise<std_msgs::Int16MultiArray>("temperature", 1);
+    ros::Publisher pub_temperature2= n.advertise<std_msgs::Int16MultiArray>("temperature2", 1);
+
     // ros::Publisher pub_image = n.advertise<image_transport::ImageTransport>("thermal/image", 1);
     // image_transport::ImageTransport it(n);
     // image_transport::Publisher pub_img = it.advertise("thermal/image", 1);
     ros::Rate loop_rate(10);
     std_msgs::Int16MultiArray temp_msg;
+    std_msgs::Int16MultiArray temp_msg2;
 
 
     // initialize camera (be sure to run sudo modprobe v4l2loopback before this)
@@ -154,6 +157,8 @@ int main(int argc, char** argv)
     short frame1[PIXELS_DATA_SIZE];
     int d_frame1[PIXELS_DATA_SIZE];
     int my_frame[PIXELS_DATA_SIZE];
+    int my_frame2[PIXELS_DATA_SIZE];
+
     int image_cal[PIXELS_DATA_SIZE];
     int deadpixel_map[PIXELS_DATA_SIZE] = { 0 };
     std::cout<<"Calibrating. Cover the lens."<<std::endl;
@@ -167,7 +172,7 @@ int main(int argc, char** argv)
         d_frame1[i] = frame1[i];
     }
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 20; i++) {
         std::cout<<"calibration frame "<<i+1<<" captured. keep lens covered"<<std::endl;
         while(!thermapp_GetImage(therm, frame1));
         for (int j = 0; j < PIXELS_DATA_SIZE; j++) {
@@ -176,11 +181,16 @@ int main(int argc, char** argv)
     }
 
     for (int i = 0; i < PIXELS_DATA_SIZE; i++) {
-        image_cal[i] = d_frame1[i] / 10;
+        image_cal[i] = d_frame1[i] / 20;
         meancal+=image_cal[i];
     }
 
     meancal = meancal / PIXELS_DATA_SIZE;
+
+
+    printf("meancal value is %d\n", meancal);
+    printf("frame[0] value is %d\n", frame1[0]);
+
 
     // Log dead pixels
     for(int i = 0; i < PIXELS_DATA_SIZE; i++){
@@ -194,35 +204,37 @@ int main(int argc, char** argv)
     while (ros::ok())
     {
         if (thermapp_GetImage(therm, frame)) { //do this work when there's a new frame
-           
 //     // Replace dead pixels with the pixel value of its neighboor
 //     while (1) {
 //         if (thermapp_GetImage(therm, frame)) {
             int i;
-            int frameMax = ((frame[0] + pre_offset_cal - image_cal[0]) * gain_cal) + offset_cal;
-            int frameMin = ((frame[0] + pre_offset_cal - image_cal[0]) * gain_cal) + offset_cal;
-            for (i = 0; i < PIXELS_DATA_SIZE; i++) { // get the min and max values
-                // only bother if the pixel isn't dead
-                if (!deadpixel_map[i]) {
-                    int x = ((frame[i] + pre_offset_cal - image_cal[i]) * gain_cal) + offset_cal;
-                    if (x > frameMax) {
-                        frameMax = x;
-                    }
-                    if (x < frameMin) {
-                        frameMin = x;
-                    }
-                }
-            }
+            // int frameMax = ((frame[0] + pre_offset_cal - image_cal[0]) * gain_cal) + offset_cal;
+            // int frameMin = ((frame[0] + pre_offset_cal - image_cal[0]) * gain_cal) + offset_cal;
+            // for (i = 0; i < PIXELS_DATA_SIZE; i++) { // get the min and max values
+            //     // only bother if the pixel isn't dead
+            //     if (!deadpixel_map[i]) {
+            //         int x = ((frame[i] + pre_offset_cal - image_cal[i]) * gain_cal) + offset_cal;
+            //         if (x > frameMax) {
+            //             frameMax = x;
+            //         }
+            //         if (x < frameMin) {
+            //             frameMin = x;
+            //         }
+            //     }
+            // }
             // second time through, this time actually scaling data
             for (i = 0; i < PIXELS_DATA_SIZE; i++) {
-                    int x = ((frame[i] + pre_offset_cal - image_cal[i]) * gain_cal) + offset_cal;
+                int x;
                 if (deadpixel_map[i]) {
                     x = ((frame[i-1] + pre_offset_cal - image_cal[i-1]) * gain_cal) + offset_cal;
+                }else{
+                    x = ((frame[i] + pre_offset_cal - image_cal[i]) * gain_cal) + offset_cal;
                 }
                 // x = (((double)x - frameMin)/(frameMax - frameMin))*255;
                 // ^^^commented out because i don't want normalized data in the python script
-
-                my_frame[PIXELS_DATA_SIZE - 1 - (PIXELS_DATA_SIZE - ((i/384)+1)*384 + i%384)] = x;                
+                // my_frame[PIXELS_DATA_SIZE - 1 - (PIXELS_DATA_SIZE - ((i/384)+1)*384 + i%384)] = x;
+                my_frame2[(PIXELS_DATA_SIZE - ((i/384)+1)*384 + i%384)] = x;                
+                
             }
 
 //             std::cout<<"frame max :"<<frameMax<<std::endl;
@@ -240,14 +252,18 @@ int main(int argc, char** argv)
 
         // if (thermapp_GetImage(therm, frame)) { // do this work when there's a new frame
             temp_msg.data.clear();
+            temp_msg2.data.clear();
             // loop for putting frame data into message format
             for (int i = 0; i < PIXELS_DATA_SIZE; i++)
             {
                 // temp_msg.data[i] = frame[i];               
-                temp_msg.data.push_back(my_frame[i]);
+                // temp_msg.data.push_back(my_frame[i]);
+                temp_msg2.data.push_back(my_frame2[i]);
+
             }
             // std::cout<<temp_msg.data[111]<<std::endl;
-            pub_temperature.publish(temp_msg);
+            pub_temperature.publish(temp_msg2);
+            // pub_temperature2.publish(temp_msg2);
         }
         // loop_rate.sleep();
     }

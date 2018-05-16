@@ -6,18 +6,9 @@ import cv2
 import numpy as np
 from rospy.numpy_msg import numpy_msg
 from std_msgs.msg import Int16MultiArray
-
 import os
 
 PIXEL_DATA_SIZE = int(384*288)
-# stupid globalvars
-counter = 0
-
-# Calibration variables
-calib_counter = 0
-pix_calib = np.zeros(PIXEL_DATA_SIZE)
-# deadpixel_map = np.zeros(PIXEL_DATA_SIZE)
-deadpixel_map = [0]
 
 def nothing(x): # pass
     pass
@@ -272,13 +263,6 @@ def newheatmap3(temperature_msg): #displays blue 'sky', red 'sun', and grey othe
         print('exit key pressed')
         rospy.signal_shutdown('exit key pressed')
 
-def Temperature_as_np_array(temp_msg): # put ROS message of temperature into np 2D array
-    tempar = np.zeros((288,384), dtype = int)
-    for i in range(0, 288):
-        for j in range(0, 384):
-            tempar[i,j] = temp_msg.data[PIXEL_DATA_SIZE - 1 - (i*384 + j)]
-    return tempar
-
 def histogram(tempData): # creates a histogram of temperature image (tempData is 288x384 np array)
     # hist = cv2.calcHist(tempData, [0], None, [256], [-500,0])
     bin_num = 100
@@ -331,8 +315,7 @@ def horiz_hist(tempData): # returns an image of the 'horizontal' histogram
     cv2.line(min_img, (0,peak), (384,peak), (0,255,0), 1)
     hist_img = img_merge(min_img, hist_img)
 
-
-
+    ##sort this out into a more modular function for merging images
     return hist_img
 
 def vert_hist(tempData): # returns an image of the 'vertical' histogram
@@ -376,8 +359,7 @@ def img_merge(img0, img1): # combines two images into one, side by side
         img1 = cv2.cvtColor(img1, cv2.COLOR_GRAY2BGR)
 
     # initialize merged image
-    final_img = np.zeros((height, width, 3), dtype='uint8')
-    final_img.fill(128)
+    final_img = np.full((height, width, 3), 128, dtype='uint8')
 
     # numpy arrays - use numpy coordinate system
     final_img[20:288+20, 20:lwidth+20] = img0
@@ -444,15 +426,18 @@ def peaker(tempData): # this function approximates the horizion based off hhist 
         avg[i] = (np.sum(tempData[i,:], axis=0)-sunpix)/(384-counter) # average without the sun pixels
 
     out = 0
-    for i in range(5, len(avg)):
+    for i in range(10, len(avg)):
         b4 = np.sum(avg[i-5:i])
         af = np.sum(avg[i+1:i+6])
-        if b4 > af:
+        if b4 >= af:
             out = i
             break
     
-    return out
+    ## ver2
+    
 
+
+    return out
 
 def fuckeverything(msg):
     temp = np.zeros((288,384), dtype=int)
@@ -481,12 +466,13 @@ def fuckeverything(msg):
         rospy.signal_shutdown('exit key pressed')
 
 def temperature_callback(temp_msg):
-    tempData = Temperature_as_np_array(temp_msg)
-
+    tempData = np.reshape(temp_msg.data, (288,384)) # turn the ROS message into a numpy array
+    # tempData = cv2.flip(tempData, 0)
+    # tempData = cv2.flip(tempData, 1)
     # # Select which images you want to create
-    min_img = simple_img(tempData)
+    # min_img = simple_img(tempData)
     # hist_img = histogram(tempData)
-    # hhist_img = horiz_hist(tempData)
+    hhist_img = horiz_hist(tempData)
     # vhist_img = vert_hist(tempData)
     # merge_img = img_merge(min_img, hhist_img)
     # sky_img = sky_picture(tempData)
@@ -497,9 +483,9 @@ def temperature_callback(temp_msg):
     # peaker(tempData)
 
     # # Display selected images
-    cv2.imshow('min_img', min_img)
+    # cv2.imshow('min_img', min_img)
     # cv2.imshow('histogram', hist_img)
-    # cv2.imshow('hhist_img', hhist_img)
+    cv2.imshow('hhist_img', hhist_img)
     # cv2.imshow('vhist_img', vhist_img)
     # cv2.imshow('merge_image', merge_img)
     # cv2.imshow('sky_img', sky_img)
@@ -509,8 +495,7 @@ def temperature_callback(temp_msg):
         print('exit key pressed')
         rospy.signal_shutdown('exit key pressed')
 
-
-def temp_sub():
+def temp_subscriber():
     rospy.init_node('listener')
     rospy.Subscriber("temperature", Int16MultiArray, temperature_callback)
     rospy.spin()
@@ -520,7 +505,7 @@ def myshutdown():
     cv2.destroyAllWindows
 
 if __name__ == '__main__':
-    temp_sub()
+    temp_subscriber()
 
 
 
