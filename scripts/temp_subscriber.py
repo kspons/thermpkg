@@ -7,7 +7,7 @@ import numpy as np
 from rospy.numpy_msg import numpy_msg
 from std_msgs.msg import Int16MultiArray
 import os
-
+import random
 PIXEL_DATA_SIZE = int(384*288)
 
 def nothing(x): # pass
@@ -263,6 +263,10 @@ def newheatmap3(temperature_msg): #displays blue 'sky', red 'sun', and grey othe
         print('exit key pressed')
         rospy.signal_shutdown('exit key pressed')
 
+def very_rough_temperature_estimator(input): # converts ThermApp data point into a 'real' temperature (deg C)
+    out = 0.2817*input + 46.127
+    return out
+
 def histogram(tempData): # creates a histogram of temperature image (tempData is 288x384 np array)
     # hist = cv2.calcHist(tempData, [0], None, [256], [-500,0])
     bin_num = 100
@@ -285,6 +289,9 @@ def histogram(tempData): # creates a histogram of temperature image (tempData is
 def horiz_hist(tempData): # returns an image of the 'horizontal' histogram
     # this function takes the average of each row and plots it
 
+    # apply gaussian filter
+    tempData = cv2.blur(tempData, (2,5))
+    
     # get the average
     row_avg = np.average(tempData, axis=1)
 
@@ -304,8 +311,8 @@ def horiz_hist(tempData): # returns an image of the 'horizontal' histogram
         cv2.circle(hist_img, mypt, 0, (0,0,0), 2)
 
     hist_img = cv2.flip(hist_img, 0)
-    cv2.putText(hist_img, str(int(mymin)), (0,288), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
-    cv2.putText(hist_img, str(int(mymax)), (0,10), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
+    cv2.putText(hist_img, str(int(very_rough_temperature_estimator(mymin))), (0,288), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
+    cv2.putText(hist_img, str(int(very_rough_temperature_estimator(mymax))), (0,10), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
 
     # Estimate the peak
     peak = peaker(tempData)
@@ -314,6 +321,107 @@ def horiz_hist(tempData): # returns an image of the 'horizontal' histogram
     min_img = cv2.cvtColor(min_img, cv2.COLOR_GRAY2BGR)
     cv2.line(min_img, (0,peak), (384,peak), (0,255,0), 1)
     hist_img = img_merge(min_img, hist_img)
+
+    ##sort this out into a more modular function for merging images
+    return hist_img
+
+def hhist2(tempData):
+    # this function takes the average of each row and plots it
+
+    # apply gaussian filter
+    tempData = cv2.blur(tempData, (2,5))
+    
+    # get the average
+    row_avg = np.average(tempData, axis=1)
+
+    # initialize opencv image as np array
+    hist_img = cv2.cvtColor(simple_img(tempData), cv2.COLOR_GRAY2BGR)
+
+    # get values that will be used to scale data to fit it onto the image
+    mymax = row_avg.max()
+    mymin = row_avg.min()
+    myrange = abs(mymax - mymin)
+
+    # loop that plots a circle for each average row value
+    for i in range(len(row_avg)):
+        # mypt = (row of image, average value of said row)
+        mypt = (int((row_avg[i]-mymin)/myrange*288), i)
+        cv2.circle(hist_img, mypt, 0, (0,0,255), 2)
+
+    cv2.putText(hist_img, str(int(very_rough_temperature_estimator(mymin))), (340,288), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,255))
+    cv2.putText(hist_img, str(int(very_rough_temperature_estimator(mymax))), (340,10), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,255))
+
+    # Estimate the peak
+    # peak = peaker(tempData)
+    # cv2.line(hist_img, (50+peak, 0), (50+peak, 384), (0,255,0), 1)
+    # min_img = simple_img(tempData)
+    # min_img = cv2.cvtColor(min_img, cv2.COLOR_GRAY2BGR)
+    # cv2.line(min_img, (0,peak), (384,peak), (0,255,0), 1)
+    # hist_img = img_merge(min_img, hist_img)
+
+    ##sort this out into a more modular function for merging images
+    return hist_img
+
+def random_color():
+    rgbl=[255,0,0]
+    random.shuffle(rgbl)
+    return (rgbl)
+
+def hhist3(tempData): # this one breaks up the hhist into portions
+    # img is 384 wide, which can be segmented into 4x96, 6x64, 8x48, 12x32, or 16x24
+    # img is 288 tall, which can be segmented into 3x96 4x72 6x48 8x36 9x32 12x24 16x18
+    dic384 = { 1:384, 2:192, 4:96, 6:64, 8:48, 12:32, 16:24 }
+    dic288 = { 1:288, 2:144, 3:96, 4:72, 6:48, 8:36, 9:32, 12:24, 16:18 }
+    # apply gaussian filter
+    tempData = cv2.blur(tempData, (2,5))
+    
+    # define how many segements in image
+    verticle_segments = 1
+    horizontal_segments = 1
+
+    # convert height and width segements into ROI pixel size
+    roi_h = dic288[horizontal_segments]
+    roi_w = dic384[verticle_segments]
+
+    
+
+    # initialize opencv image as np array
+    hist_img = cv2.cvtColor(simple_img(tempData), cv2.COLOR_GRAY2BGR)
+
+    for i in range(0, verticle_segments):
+        cv2.line(hist_img, (i*roi_w,0), (i*roi_w,288), (255,255,255), 1)
+        for j in range(0, horizontal_segments):
+            cv2.line(hist_img, (0,j*roi_h), (384,j*roi_h), (255,255,255), 1)
+            roi_row_avg = np.average(tempData[j*roi_h:(j+1)*roi_h, i*roi_w:(i+1)*roi_w], axis=1)
+            # print roi_row_avg
+            mymax = roi_row_avg.max()
+            mymin = roi_row_avg.min()
+            myrange = abs(mymax - mymin)
+            randocolor = random_color()
+            for k in range(len(roi_row_avg)):
+            #     # mypt = (row of image, average value of said row)
+                mypt = (int((roi_row_avg[k]-mymin)/myrange*roi_w)+i*roi_w, j*roi_h+k)
+                # mypt = (j*roi_w, i*roi_h+k)
+                cv2.circle(hist_img, mypt, 0, randocolor, 2)
+
+
+
+    # loop that plots a circle for each average row value
+    # for i in range(len(row_avg)):
+        # mypt = (row of image, average value of said row)
+        # mypt = (int((row_avg[i]-mymin)/myrange*288), i)
+        # cv2.circle(hist_img, mypt, 0, (0,0,255), 2)
+
+    # cv2.putText(hist_img, str(int(very_rough_temperature_estimator(mymin))), (340,288), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,255))
+    # cv2.putText(hist_img, str(int(very_rough_temperature_estimator(mymax))), (340,10), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,255))
+
+    # Estimate the peak
+    # peak = peaker(tempData)
+    # cv2.line(hist_img, (50+peak, 0), (50+peak, 384), (0,255,0), 1)
+    # min_img = simple_img(tempData)
+    # min_img = cv2.cvtColor(min_img, cv2.COLOR_GRAY2BGR)
+    # cv2.line(min_img, (0,peak), (384,peak), (0,255,0), 1)
+    # hist_img = img_merge(min_img, hist_img)
 
     ##sort this out into a more modular function for merging images
     return hist_img
@@ -426,17 +534,38 @@ def peaker(tempData): # this function approximates the horizion based off hhist 
         avg[i] = (np.sum(tempData[i,:], axis=0)-sunpix)/(384-counter) # average without the sun pixels
 
     out = 0
-    for i in range(10, len(avg)):
-        b4 = np.sum(avg[i-5:i])
-        af = np.sum(avg[i+1:i+6])
-        if b4 >= af:
-            out = i
-            break
+
+    ## ver1
+    # for i in range(60, len(avg)):
+    #     b4 = np.sum(avg[i-5:i])
+    #     af = np.sum(avg[i+1:i+6])
+    #     if b4 >= af:
+    #         out = i
+    #         break
+    #     elif i == len(avg):
+    #         print 'full loop'
     
     ## ver2
-    
+    mycounter = 0
+    avg = np.average(tempData, axis=1)
+    diff = np.ediff1d(avg, to_end=0)
+    diff2 = np.ediff1d(diff, to_end=0)
+    for i in range(60, 288):
+        
+        b4 = np.sum(diff[i-4:i])
+        af = np.sum(diff[i+1: i+5])
+        if af <= 0:
+            counter +=1
+            if counter >= 5:
+                if sum(diff2[i-4:i])<0:
 
-
+                    out = i -5 
+                    break
+        elif i == 288:
+            print 'did not find peak'
+        else:
+            counter = 0
+    # print diff2
     return out
 
 def fuckeverything(msg):
@@ -467,12 +596,13 @@ def fuckeverything(msg):
 
 def temperature_callback(temp_msg):
     tempData = np.reshape(temp_msg.data, (288,384)) # turn the ROS message into a numpy array
-    # tempData = cv2.flip(tempData, 0)
+    tempData = cv2.flip(tempData, 0)
     # tempData = cv2.flip(tempData, 1)
     # # Select which images you want to create
     # min_img = simple_img(tempData)
     # hist_img = histogram(tempData)
-    hhist_img = horiz_hist(tempData)
+    # hhist_img = horiz_hist(tempData)
+    hhist_img = hhist3(tempData)
     # vhist_img = vert_hist(tempData)
     # merge_img = img_merge(min_img, hhist_img)
     # sky_img = sky_picture(tempData)
