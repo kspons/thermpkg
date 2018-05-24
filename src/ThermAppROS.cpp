@@ -265,7 +265,7 @@ int main(int argc, char** argv)
             pub_temperature.publish(temp_msg2);
             // pub_temperature2.publish(temp_msg2);
         }
-        // loop_rate.sleep();
+        loop_rate.sleep();
     }
 
     close(fdwr);

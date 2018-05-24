@@ -596,7 +596,7 @@ def fuckeverything(msg):
 
 def temperature_callback(temp_msg):
     tempData = np.reshape(temp_msg.data, (288,384)) # turn the ROS message into a numpy array
-    tempData = cv2.flip(tempData, 0)
+    # tempData = cv2.flip(tempData, 0)
     # tempData = cv2.flip(tempData, 1)
     # # Select which images you want to create
     # min_img = simple_img(tempData)
