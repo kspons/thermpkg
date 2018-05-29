@@ -376,8 +376,8 @@ def hhist3(tempData): # this one breaks up the hhist into portions
     tempData = cv2.blur(tempData, (2,5))
     
     # define how many segements in image
-    verticle_segments = 1
-    horizontal_segments = 1
+    verticle_segments = 4
+    horizontal_segments = 4
 
     # convert height and width segements into ROI pixel size
     roi_h = dic288[horizontal_segments]
@@ -391,18 +391,18 @@ def hhist3(tempData): # this one breaks up the hhist into portions
     for i in range(0, verticle_segments):
         cv2.line(hist_img, (i*roi_w,0), (i*roi_w,288), (255,255,255), 1)
         for j in range(0, horizontal_segments):
-            cv2.line(hist_img, (0,j*roi_h), (384,j*roi_h), (255,255,255), 1)
+            cv2.line(hist_img, (0,j*roi_h ), (384,j*roi_h), (255,255,255), 1)
             roi_row_avg = np.average(tempData[j*roi_h:(j+1)*roi_h, i*roi_w:(i+1)*roi_w], axis=1)
             # print roi_row_avg
             mymax = roi_row_avg.max()
             mymin = roi_row_avg.min()
             myrange = abs(mymax - mymin)
-            randocolor = random_color()
+            # randocolor = random_color()
             for k in range(len(roi_row_avg)):
             #     # mypt = (row of image, average value of said row)
                 mypt = (int((roi_row_avg[k]-mymin)/myrange*roi_w)+i*roi_w, j*roi_h+k)
                 # mypt = (j*roi_w, i*roi_h+k)
-                cv2.circle(hist_img, mypt, 0, randocolor, 2)
+                cv2.circle(hist_img, mypt, 0, (255,0,0), 2)
 
 
 
@@ -636,6 +636,3 @@ def myshutdown():
 
 if __name__ == '__main__':
     temp_subscriber()
-
-
-

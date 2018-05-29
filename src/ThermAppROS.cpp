@@ -86,7 +86,7 @@ int main(int argc, char** argv)
     // ros::Publisher pub_image = n.advertise<image_transport::ImageTransport>("thermal/image", 1);
     // image_transport::ImageTransport it(n);
     // image_transport::Publisher pub_img = it.advertise("thermal/image", 1);
-    ros::Rate loop_rate(10);
+    ros::Rate loop_rate(16);
     std_msgs::Int16MultiArray temp_msg;
     std_msgs::Int16MultiArray temp_msg2;
 
