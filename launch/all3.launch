@@ -22,33 +22,25 @@
       <param name="camera_info_url" if="$(arg calibrated)"
              value="file://$(env HOME)/.ros/camera_info/$(arg camera_serial).yaml" />
     </node>
-
-    
   </group>
   
   <!-- node pkg="thermalcam" type="thermaltopic" name="thermaltopic" args="0" /-->
   <node pkg="thermpkg" type="thermpkg_node" name="temperature" />
 
   <!-- start MAVROS -->
-	<arg name="fcu_url" default="udp://:14550@" />
-	<arg name="gcs_url" default="" />
-	<arg name="tgt_system" default="1" />
-	<arg name="tgt_component" default="1" />
-	<arg name="log_output" default="screen" />
-	<arg name="fcu_protocol" default="v2.0" />
-	<arg name="respawn_mavros" default="false" />
-
+  <group>
 	<include file="$(find mavros)/launch/node.launch">
 		<arg name="pluginlists_yaml" value="$(find mavros)/launch/apm_pluginlists.yaml" />
 		<arg name="config_yaml" value="$(find mavros)/launch/apm_config.yaml" />
 
-		<arg name="fcu_url" value="$(arg fcu_url)" />
-		<arg name="gcs_url" value="$(arg gcs_url)" />
-		<arg name="tgt_system" value="$(arg tgt_system)" />
-		<arg name="tgt_component" value="$(arg tgt_component)" />
-		<arg name="log_output" value="$(arg log_output)" />
-		<arg name="fcu_protocol" value="$(arg fcu_protocol)" />
-		<arg name="respawn_mavros" default="$(arg respawn_mavros)" />
+		<arg name="fcu_url" value="udp://:14550@" />
+		<arg name="gcs_url" value="" />
+		<arg name="tgt_system" value="1" />
+		<arg name="tgt_component" value="1" />
+		<arg name="log_output" value="screen" />
+		<arg name="fcu_protocol" value="v2.0" />
+		<arg name="respawn_mavros" default="false" />
 	</include>
-
+  </group>
+  
 </launch>
