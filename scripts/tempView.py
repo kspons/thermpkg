@@ -24,12 +24,15 @@ def simple_img(tempData): # outputs a viewable image
 
 def temperature_estimator(input):
     # converts ThermApp data point into a 'real' temperature (deg C)
-    out = 0.2817*input + 46.127
+    out = (input - 10000) * ( 0.00652)
+    # out = 0.2817*input + 46.127
+    # thermapp uses (t - 14336) * 0.00652
     return out
 
 def simpleImgCallback(temp_msg):
     # turn the ROS message into a numpy array
-    tempData = cv2.flip(np.reshape(temp_msg.data, (288,384)), 0)
+    # tempData = cv2.flip(np.reshape(temp_msg.data, (288,384)), 0)
+    tempData = np.reshape(temp_msg.data, (288,384))
     # generate simple image for viewing
     min_img = simple_img(tempData)
     # display image

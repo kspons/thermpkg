@@ -9,69 +9,70 @@ from std_msgs.msg import Int16MultiArray
 import os
 import random
 PIXEL_DATA_SIZE = int(384*288)
-
+counter = 0
 def nothing(x): # pass
     pass
 
 def temperature_process(temperature_data):
     
     # turn ROS message into a numpy array
-    tempData = np.asarray(temperature_data.data)
+    # tempData = np.asarray(temperature_data.data)
 
-    # calibration routine
-    global calib_counter
-    global pix_calib
-    global deadpixel_map
-    calib_frames = 20
-    if calib_counter < calib_frames:
-        # for each pixel, get the average value over x frames
-        pix_calib = np.add(pix_calib, tempData)
-        print "Obtained Calibration image #", calib_counter+1
-        calib_counter += 1
+    # # calibration routine
+    # global calib_counter
+    # global pix_calib
+    # global deadpixel_map
+    # calib_frames = 20
+    # if calib_counter < calib_frames:
+    #     # for each pixel, get the average value over x frames
+    #     pix_calib = np.add(pix_calib, tempData)
+    #     print "Obtained Calibration image #", calib_counter+1
+    #     calib_counter += 1
 
-    elif calib_counter == calib_frames:
-        pix_calib = pix_calib / (calib_frames)
-        meanpixel = np.mean(pix_calib)
-        for i in range(0, PIXEL_DATA_SIZE):
-            if (pix_calib[i] > meanpixel + 240) or (pix_calib[i] < meanpixel - 240):
-                print ("dead pixel at location {0}  ({1} vs {2})".format(i, pix_calib[i], meanpixel))
-                deadpixel_map = np.append(deadpixel_map, [i])
-        calib_counter += 1
-        print ("dead pixels identified at locations:")
-        print np.size(deadpixel_map)-1, ' dead pixels detected'
-        print "Calibration finished"
-    else:
-        # replace dead pixels with the pixel value of its neighboor (lazy, i know)
-        for i in range(1, len(deadpixel_map)):
-            tempData[deadpixel_map[i]] = tempData[deadpixel_map[i]-1]
-        calib_gain = 2
+    # elif calib_counter == calib_frames:
+    #     pix_calib = pix_calib / (calib_frames)
+    #     meanpixel = np.mean(pix_calib)
+    #     for i in range(0, PIXEL_DATA_SIZE):
+    #         if (pix_calib[i] > meanpixel + 240) or (pix_calib[i] < meanpixel - 240):
+    #             print ("dead pixel at location {0}  ({1} vs {2})".format(i, pix_calib[i], meanpixel))
+    #             deadpixel_map = np.append(deadpixel_map, [i])
+    #     calib_counter += 1
+    #     print ("dead pixels identified at locations:")
+    #     print np.size(deadpixel_map)-1, ' dead pixels detected'
+    #     print "Calibration finished"
+    # else:
+    #     # replace dead pixels with the pixel value of its neighboor (lazy, i know)
+    #     for i in range(1, len(deadpixel_map)):
+    #         tempData[deadpixel_map[i]] = tempData[deadpixel_map[i]-1]
+    #     calib_gain = 2
 
-        # Temperature data into human viewable image
-        scaling_array = np.subtract(tempData, pix_calib)*calib_gain
-        temp_min = np.ndarray.min(scaling_array)
-        temp_max = np.ndarray.max(scaling_array)
-        # temp_min = -100
-        # temp_max = 100
-        temp_range = np.float(temp_max - temp_min)
+    #     # Temperature data into human viewable image
+    #     scaling_array = np.subtract(tempData, pix_calib)*calib_gain
+    #     temp_min = np.ndarray.min(scaling_array)
+    #     temp_max = np.ndarray.max(scaling_array)
+    #     # temp_min = -100
+    #     # temp_max = 100
+    #     temp_range = np.float(temp_max - temp_min)
 
 
-        floats = np.array((scaling_array - temp_min ) / (temp_range), dtype=float)
-        img = np.array(floats * 255, dtype = np.uint8)
-        # now put the pixels into a opencv image compatible numpy array
-        cvimg = np.zeros(PIXEL_DATA_SIZE, dtype=np.uint8)
-        for i in range (0, PIXEL_DATA_SIZE):
-            cvimg[(PIXEL_DATA_SIZE - ((i/384)+1)*384 + i%384)] = np.uint8(floats[i]*255)
-        cvimg = np.reshape(cvimg, (288,-1))
-        # display the image
-        cv2.imshow('cvimg', cvimg)
-        cv2.moveWindow('cvimg', 50, 50)
-        waitkey = cv2.waitKey(1)
-        if waitkey == 27 or waitkey == 113: # 'esc' and 'q' keys
-            print('exit key pressed')
-            rospy.signal_shutdown('exit key pressed')
-        elif waitkey == 99: # 'c' key
-            print "C key pressed - recalibrating. Keep the lens Covered."
-            calib_counter = 0
+    #     floats = np.array((scaling_array - temp_min ) / (temp_range), dtype=float)
+    #     img = np.array(floats * 255, dtype = np.uint8)
+    #     # now put the pixels into a opencv image compatible numpy array
+    #     cvimg = np.zeros(PIXEL_DATA_SIZE, dtype=np.uint8)
+    #     for i in range (0, PIXEL_DATA_SIZE):
+    #         cvimg[(PIXEL_DATA_SIZE - ((i/384)+1)*384 + i%384)] = np.uint8(floats[i]*255)
+    #     cvimg = np.reshape(cvimg, (288,-1))
+    #     # display the image
+    #     cv2.imshow('cvimg', cvimg)
+    #     cv2.moveWindow('cvimg', 50, 50)
+    #     waitkey = cv2.waitKey(1)
+    #     if waitkey == 27 or waitkey == 113: # 'esc' and 'q' keys
+    #         print('exit key pressed')
+    #         rospy.signal_shutdown('exit key pressed')
+    #     elif waitkey == 99: # 'c' key
+    #         print "C key pressed - recalibrating. Keep the lens Covered."
+    #         calib_counter = 0
+    return 0
 
 def temperature_process_first_sky(temperature_data):
     
@@ -271,8 +272,7 @@ def histogram(tempData): # creates a histogram of temperature image (tempData is
     # hist = cv2.calcHist(tempData, [0], None, [256], [-500,0])
     bin_num = 100
     hist, bin_edges = np.histogram(tempData, bin_num, range=None, normed=False, weights=None)
-
-
+    
     # print hist
     hist_img = np.zeros((256*3,256*2))
     hist_max = float(hist.max())
@@ -376,14 +376,12 @@ def hhist3(tempData): # this one breaks up the hhist into portions
     tempData = cv2.blur(tempData, (2,5))
     
     # define how many segements in image
-    verticle_segments = 4
-    horizontal_segments = 4
+    verticle_segments = 1
+    horizontal_segments = 1
 
     # convert height and width segements into ROI pixel size
     roi_h = dic288[horizontal_segments]
     roi_w = dic384[verticle_segments]
-
-    
 
     # initialize opencv image as np array
     hist_img = cv2.cvtColor(simple_img(tempData), cv2.COLOR_GRAY2BGR)
@@ -423,7 +421,6 @@ def hhist3(tempData): # this one breaks up the hhist into portions
     # cv2.line(min_img, (0,peak), (384,peak), (0,255,0), 1)
     # hist_img = img_merge(min_img, hist_img)
 
-    ##sort this out into a more modular function for merging images
     return hist_img
 
 def vert_hist(tempData): # returns an image of the 'vertical' histogram
@@ -506,7 +503,7 @@ def sky_picture(tempData): # create and display image of detected sky
 def imagesaver(img):
     global counter
     # change cwd
-    foldername = "first_horizon"
+    foldername = "lake2-1"
     folderpath = "/home/kspons/Pictures/" + foldername
     imgname = 'img' + str(counter).zfill(4) + ".png"
     if not os.path.exists(folderpath):
@@ -596,6 +593,7 @@ def fuckeverything(msg):
 
 def temperature_callback(temp_msg):
     tempData = np.reshape(temp_msg.data, (288,384)) # turn the ROS message into a numpy array
+    # flip data the right way
     # tempData = cv2.flip(tempData, 0)
     # tempData = cv2.flip(tempData, 1)
     # # Select which images you want to create
@@ -607,9 +605,6 @@ def temperature_callback(temp_msg):
     # merge_img = img_merge(min_img, hhist_img)
     # sky_img = sky_picture(tempData)
 
-    # # Save an image if you want to
-    # imagesaver(hhist_img)
-
     # peaker(tempData)
 
     # # Display selected images
@@ -619,7 +614,8 @@ def temperature_callback(temp_msg):
     # cv2.imshow('vhist_img', vhist_img)
     # cv2.imshow('merge_image', merge_img)
     # cv2.imshow('sky_img', sky_img)
-    
+
+
     waitkey = cv2.waitKey(1)
     if waitkey == 27 or waitkey == 113: # 'esc' and 'q' keys
         print('exit key pressed')
