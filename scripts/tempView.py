@@ -16,15 +16,28 @@ def simple_img(tempData): # outputs a viewable image
     bwimg = (tempData - temp_min) / temp_range * 255
     bwimg = bwimg.astype('uint8')
     # Add approximate min/max temperature seen in the image (deg C)
-    cv2.putText(bwimg, str(temperature_estimator(temp_max)),
-    (0,20), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (255,255,255))
-    cv2.putText(bwimg, str(temperature_estimator(temp_min)),
-    (0,280), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (255,255,255))
+    # cv2.putText(bwimg, str(tempData[0,0]),
+    # (0,20), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (255,255,255))
+    # cv2.putText(bwimg, str(temperature_estimator(temp_min)),
+    # (0,280), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (255,255,255))
+    # cv2.circle(bwimg, (100,100), 2, (255,255,255), 1)
+    # cv2.putText(bwimg, str(tempData[100,100]),
+    # (100,100), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (255,255,255))
+    nppoints = [(100,100), (200,90), (200,280), (203,10), (280,300), (73,200)]
+    cvpoints = [(100,100), (90,200), (280,200), (10,203), (300,280), (208,10)]
+    for i in range(len(nppoints)):
+        cv2.circle(bwimg, cvpoints[i], 1, (255,255,255), 1)
+        # cv2.putText(bwimg, str(tempData[points[i]]),
+        # points[i], cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (255,255,255))
+        # "temp"
+        cv2.putText(bwimg, str(temperature_estimator(tempData[nppoints[i]])),
+        cvpoints[i], cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (255,255,255))
+
     return bwimg
 
 def temperature_estimator(input):
     # converts ThermApp data point into a 'real' temperature (deg C)
-    out = (input - 10000) * ( 0.00652)
+    out = (input+275)
     # out = 0.2817*input + 46.127
     # thermapp uses (t - 14336) * 0.00652
     return out

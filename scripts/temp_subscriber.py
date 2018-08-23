@@ -8,6 +8,7 @@ from rospy.numpy_msg import numpy_msg
 from std_msgs.msg import Int16MultiArray
 import os
 import random
+import sensor_msgs.msg import Image
 PIXEL_DATA_SIZE = int(384*288)
 counter = 0
 def nothing(x): # pass
@@ -376,8 +377,8 @@ def hhist3(tempData): # this one breaks up the hhist into portions
     tempData = cv2.blur(tempData, (2,5))
     
     # define how many segements in image
-    verticle_segments = 1
-    horizontal_segments = 1
+    verticle_segments = 2
+    horizontal_segments = 2
 
     # convert height and width segements into ROI pixel size
     roi_h = dic288[horizontal_segments]
@@ -396,14 +397,21 @@ def hhist3(tempData): # this one breaks up the hhist into portions
             mymin = roi_row_avg.min()
             myrange = abs(mymax - mymin)
             # randocolor = random_color()
+            myptold = 0
             for k in range(len(roi_row_avg)):
             #     # mypt = (row of image, average value of said row)
                 mypt = (int((roi_row_avg[k]-mymin)/myrange*roi_w)+i*roi_w, j*roi_h+k)
                 # mypt = (j*roi_w, i*roi_h+k)
-                cv2.circle(hist_img, mypt, 0, (255,0,0), 2)
+                # cv2.circle(hist_img, mypt, 0, (255,0,0), 2)
+
+                if mypt[0] > myptold:
+                    cv2.circle(hist_img, mypt, 0, (0,255,0), 2)
+                else:
+                    cv2.circle(hist_img, mypt, 0, (255,0,0), 2)
+                myptold = mypt[0]
 
 
-
+             
     # loop that plots a circle for each average row value
     # for i in range(len(row_avg)):
         # mypt = (row of image, average value of said row)
@@ -419,9 +427,16 @@ def hhist3(tempData): # this one breaks up the hhist into portions
     # min_img = simple_img(tempData)
     # min_img = cv2.cvtColor(min_img, cv2.COLOR_GRAY2BGR)
     # cv2.line(min_img, (0,peak), (384,peak), (0,255,0), 1)
-    # hist_img = img_merge(min_img, hist_img)
-
+    # hist_img = img_merge(min_img, hist_img) 
     return hist_img
+
+def allnewbb(tempData):
+    # print tempData.max()
+    # print tempData.min()
+    # # print tempData.max()-tempData.min()
+    # print np.average(tempData)
+    # import matplotlib.pyplot
+    a = 0
 
 def vert_hist(tempData): # returns an image of the 'vertical' histogram
     # this function takes the average of each column and plots it
@@ -591,6 +606,10 @@ def fuckeverything(msg):
         print('exit key pressed')
         rospy.signal_shutdown('exit key pressed')
 
+def littlepub(tempData):
+    bw_img = simple_img(tempData)
+
+
 def temperature_callback(temp_msg):
     tempData = np.reshape(temp_msg.data, (288,384)) # turn the ROS message into a numpy array
     # flip data the right way
@@ -600,17 +619,18 @@ def temperature_callback(temp_msg):
     # min_img = simple_img(tempData)
     # hist_img = histogram(tempData)
     # hhist_img = horiz_hist(tempData)
-    hhist_img = hhist3(tempData)
+    # hhist_img = hhist3(tempData)
     # vhist_img = vert_hist(tempData)
     # merge_img = img_merge(min_img, hhist_img)
     # sky_img = sky_picture(tempData)
+    # allnewbb(tempData)
 
     # peaker(tempData)
 
     # # Display selected images
     # cv2.imshow('min_img', min_img)
     # cv2.imshow('histogram', hist_img)
-    cv2.imshow('hhist_img', hhist_img)
+    # cv2.imshow('hhist_img', hhist_img)
     # cv2.imshow('vhist_img', vhist_img)
     # cv2.imshow('merge_image', merge_img)
     # cv2.imshow('sky_img', sky_img)
@@ -624,6 +644,9 @@ def temperature_callback(temp_msg):
 def temp_subscriber():
     rospy.init_node('listener')
     rospy.Subscriber("temperature", Int16MultiArray, temperature_callback)
+
+    rospy.Publisher("therm_img", )
+
     rospy.spin()
 
 def myshutdown():

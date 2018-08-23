@@ -7,6 +7,7 @@ This package allows the ThermApp camera to be used in ROS. It usues encryptededd
 **Keywords:** ROS, ThermApp, thermal
 
 **Author: Keith Sponsler
+
 Affiliation: Texas A&M University**
 
 Thermpkg has been tested under [ROS] Kinetic using Ubuntu 17.04 and Ubuntumate for Raspberry Pi Model B. I oftentimes make and break code on here, especially the python scripts. But the main publisher should remain intact. 
